@@ -159,8 +159,12 @@ dash_app.layout = dbc.Container(
     [
         html.H2(
             "3D Word Embedding Visualizer",
-            className="text-center my-5 font-weight-bold",
-        ),  # Font-weight bold for header
+            className="text-center my-5",
+            style={
+                "fontSize": "1.5em",
+                "@media (min-width: 768px)": {"fontSize": "2.5em"},
+            },  # Adjust font size based on screen width
+        ),
         # Input Row
         dbc.Row(
             [
@@ -196,6 +200,32 @@ dash_app.layout = dbc.Container(
             [
                 dbc.Col(dcc.Graph(id="3d-plot", style={"marginTop": "20px"}), width=12)
             ],  # Increased margin-top
+        ),
+        # Footer Component
+        dbc.Row(
+            [
+                dbc.Col(
+                    html.Div(
+                        [
+                            html.Span("Built by "),
+                            html.A(
+                                "Emiliano García-López",
+                                href="https://github.com/EmilianoGarciaLopez",
+                                target="_blank",
+                            ),
+                            html.Span(". Original concept by "),
+                            html.A(
+                                "Grant",
+                                href="https://twitter.com/granawkins/status/1715231557974462648",
+                                target="_blank",
+                            ),
+                            html.Span("."),
+                        ],
+                        className="text-center mt-5",
+                    ),
+                    width=12,
+                )
+            ]
         ),
     ],
     fluid=True,
