@@ -79,9 +79,10 @@ app = Flask(__name__)
 dash_app = dash.Dash(
     __name__,
     server=app,
-    routes_pathname_prefix="/dash/",
+    routes_pathname_prefix="/",
     external_stylesheets=[dbc.themes.BOOTSTRAP],
 )
+
 dash_app.title = "3D Word Embedding Visualizer"
 
 
@@ -233,4 +234,4 @@ dash_app.layout = dbc.Container(
 )
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8050)
+    app.run(host="0.0.0.0", debug=False, port=8050)
