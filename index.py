@@ -120,6 +120,8 @@ dash_app.index_string = """
         {%css%}
         <!-- Open Graph Meta Tag -->
         <meta property="og:image" content="https://static.friendsforduke.org/og_image.png">
+        <meta name="description" content="LatentDictionary: Explore word embeddings in 3D and generate real-time semantic visualizations">
+
     </head>
     <body>
         {%app_entry%}
@@ -258,7 +260,6 @@ def update_graph(n_submit, tile_clicks, input_value, tile_labels):
     return fig
 
 
-# Dash layout
 dash_app.layout = dbc.Container(
     [
         # Search Bar and Closest Words Overlay
@@ -278,9 +279,9 @@ dash_app.layout = dbc.Container(
                                         "borderRadius": "15px",
                                         "fontSize": "1.1em",
                                         "backgroundColor": "#f5f5f5aa",
-                                        "paddingRight": "40px",  # to ensure text doesn't overlap with the button
+                                        "paddingRight": "40px",
                                     },
-                                    n_submit=0,  # Initialize n_submit to 0
+                                    n_submit=0,
                                 ),
                                 dbc.Button(
                                     "?",
@@ -288,9 +289,9 @@ dash_app.layout = dbc.Container(
                                     className="position-absolute top-50 end-0 translate-middle-y border-0 rounded-circle",
                                     style={
                                         "background": "transparent",
-                                        "color": "#808080",  # Grey color
+                                        "color": "#808080",
                                         "fontSize": "1.2em",
-                                        "right": "15px",  # adjust as needed for your design
+                                        "right": "15px",
                                     },
                                 ),
                                 dbc.Tooltip(
@@ -308,19 +309,20 @@ dash_app.layout = dbc.Container(
                             type="default",
                         ),
                     ],
+                    # Adjust width for different screen sizes
+                    xs=12,  # 100% on extra small screens
+                    sm=10,  # 83.33% on small screens
+                    md=8,  # 66.66% on medium screens
+                    lg=6,  # 50% on large screens
+                    xl=5,  # 41.66% on extra large screens
                     className="position-fixed top-0 start-50 translate-middle-x p-2 rounded",
                     style={"zIndex": 1000},
-                    width=5,
                 )
             ],
         ),
         # 3D Plot
         dbc.Row(
-            [
-                dbc.Col(
-                    dcc.Graph(id="3d-plot", style={"height": "100vh"}), width=12
-                )  # Set height to 100% of viewport height
-            ],
+            [dbc.Col(dcc.Graph(id="3d-plot", style={"height": "100vh"}), width=12)],
         ),
         # Footer Component
         dbc.Row(
@@ -341,6 +343,12 @@ dash_app.layout = dbc.Container(
                                 target="_blank",
                             ),
                             html.Span("."),
+                            html.Br(),  # Break line for aesthetic spacing
+                            html.A(
+                                "View on Github",
+                                href="https://github.com/EmilianoGarciaLopez/Latent-Dictionary",
+                                target="_blank",
+                            ),
                         ],
                         className="text-end mt-5",
                         style={"fontSize": "0.8em"},
@@ -351,11 +359,11 @@ dash_app.layout = dbc.Container(
             className="position-fixed bottom-0 end-0 mb-2 me-2",
         ),
     ],
-    style={
-        "paddingBottom": "50px"  # Add enough padding at the bottom to make space for the footer
-    },
+    style={"paddingBottom": "50px"},
     fluid=True,
 )
+
+# ... (the rest of your code)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=False, port=8050)
