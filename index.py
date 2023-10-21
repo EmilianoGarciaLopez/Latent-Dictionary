@@ -7,7 +7,7 @@ import numpy as np
 import openai
 import plotly.graph_objects as go
 import requests
-from dash import Meta, dcc, html
+from dash import dcc, html
 from dash.dependencies import ALL, Input, Output, State
 from dotenv import load_dotenv
 from flask import Flask
@@ -110,6 +110,27 @@ dash_app = dash.Dash(
 )
 
 dash_app.title = "LatentDictionary | Embeddings as a Dictionary"
+dash_app.index_string = """
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <!-- Open Graph Meta Tag -->
+        <meta property="og:image" content="https://static.friendsforduke.org/og_image.png">
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+"""
 
 
 @dash_app.callback(
@@ -240,23 +261,6 @@ def update_graph(n_submit, tile_clicks, input_value, tile_labels):
 # Dash layout
 dash_app.layout = dbc.Container(
     [
-        html.Head(
-            [
-                Meta(
-                    name="og:title",
-                    content="LatentDictionary | Embeddings as a Dictionary",
-                ),
-                Meta(
-                    name="og:description",
-                    content="Visualize embeddings as a dictionary.",
-                ),
-                Meta(
-                    name="og:image",
-                    content="https://static.friendsforduke.org/og_image.png",
-                ),
-                # Meta(name="og:url", content="https://yourwebsite.com/app"),
-            ]
-        ),
         # Search Bar and Closest Words Overlay
         dbc.Row(
             [

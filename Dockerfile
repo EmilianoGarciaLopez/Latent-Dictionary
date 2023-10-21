@@ -11,6 +11,9 @@ WORKDIR /app
 # Copy requirements.txt into the container at /app
 COPY requirements.txt /app/
 
+# copy the .env file
+COPY .env /app/
+
 # Install required packages
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
