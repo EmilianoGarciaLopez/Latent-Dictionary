@@ -9,11 +9,17 @@ import plotly.graph_objects as go
 import requests
 from dash import dcc, html
 from dash.dependencies import ALL, Input, Output, State
+from dotenv import load_dotenv
 from flask import Flask
 from scipy.spatial import distance
 from sklearn.decomposition import PCA
 
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_KEY")
+
+
 DEFAULT_WORD = "the"
+model = "text-embedding-ada-002"
 
 
 # Fetch the Oxford 3000 words
@@ -47,7 +53,6 @@ if os.path.exists(EMBEDDINGS_FILE):
     word_embeddings_map = load_embeddings_from_file(EMBEDDINGS_FILE)
 else:
     word_embeddings_map = {}
-    openai.api_key = "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"
     model = "text-embedding-ada-002"
     n_items = len(oxford_3000)
     batch_size = 1000
@@ -75,6 +80,27 @@ def closest_words(target_embedding, embeddings, words, n=8):
     return [words[idx] for idx in sorted_indices[: min(n, len(words))]]
 
 
+def fetch_and_add_embeddings(words_to_embed):
+    global words, embeddings, reduced_embeddings
+
+    if not isinstance(words_to_embed, list):
+        words_to_embed = [words_to_embed]
+
+    try:
+        response = openai.Embedding.create(input=words_to_embed, model=model)
+        new_embeddings = [word_data["embedding"] for word_data in response["data"]]
+        for word, embedding in zip(words_to_embed, new_embeddings):
+            word_embeddings_map[word] = embedding
+            if word not in words:
+                words.append(word)
+    except Exception as e:
+        print(f"Failed to fetch embeddings. Reason: {str(e)}")
+        print(f"Words causing the issue: {words_to_embed}")
+
+    embeddings = np.array(list(word_embeddings_map.values()))
+    reduced_embeddings = pca.fit_transform(embeddings)
+
+
 app = Flask(__name__)
 dash_app = dash.Dash(
     __name__,
@@ -89,27 +115,57 @@ dash_app.title = "3D Word Embedding Visualizer"
 @dash_app.callback(
     [Output("closest-words", "children"), Output("word-input", "value")],
     [
-        Input("word-input", "value"),
+        Input("word-input", "n_submit"),  # Changed from "value" to "n_submit"
         Input({"type": "word-tile", "index": ALL}, "n_clicks"),
     ],
-    [State({"type": "word-tile", "index": ALL}, "children")],
+    [
+        State("word-input", "value"),
+        State({"type": "word-tile", "index": ALL}, "children"),
+    ],  # Added the word-input's value to the state
 )
-def display_closest_words(word_to_highlight, tile_clicks, tile_labels):
+def display_closest_words(
+    word_submit_count, tile_clicks, word_input_value, tile_labels
+):  # Changed parameters
     ctx = dash.callback_context
+    component_id = ""  # Initialize component_id here
+
     if not ctx.triggered:
         word_to_highlight = DEFAULT_WORD
+    else:
+        component_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
-    # Check if any button was clicked
-    clicked_button_idx = next(
-        (i for i, n in enumerate(tile_clicks) if n and n > 0), None
-    )
+        if "word-tile" in component_id:
+            clicked_button_idx = next(
+                (i for i, n in enumerate(tile_clicks) if n and n > 0), None
+            )
+            if clicked_button_idx is not None:
+                word_to_highlight = tile_labels[clicked_button_idx]
+            else:
+                word_to_highlight = DEFAULT_WORD
+        else:
+            words_to_highlight = [
+                word.strip()
+                for word in (word_input_value or "").split(",")
+                if word.strip()
+            ]
+            words_not_in_map = [
+                word for word in words_to_highlight if word not in word_embeddings_map
+            ]
+            if words_not_in_map:
+                fetch_and_add_embeddings(words_not_in_map)
+                # After adding the new words, update the PCA-reduced embeddings
+                global reduced_embeddings
+                reduced_embeddings = pca.fit_transform(np.array(embeddings))
 
-    # If a word-tile button was clicked, update the word_to_highlight
-    if clicked_button_idx is not None:
-        word_to_highlight = tile_labels[clicked_button_idx]
+            word_to_highlight = (
+                words_to_highlight[0] if words_to_highlight else DEFAULT_WORD
+            )
 
+    # If after fetching the embeddings we still don't have the word_to_highlight, something failed.
     if word_to_highlight not in word_embeddings_map:
-        return [], word_to_highlight
+        return [
+            html.Div(f"Failed to fetch embedding for '{word_to_highlight}'.")
+        ], dash.no_update
 
     target_embedding = word_embeddings_map[word_to_highlight]
     closest_8 = closest_words(target_embedding, embeddings, words, 8)
@@ -118,27 +174,48 @@ def display_closest_words(word_to_highlight, tile_clicks, tile_labels):
         dbc.Button(
             word,
             id={"type": "word-tile", "index": i},
-            className="mx-2 my-1 rounded-pill",  # Added rounded-pill for rounded buttons
-            color="secondary",  # Changed color to secondary for neutral appearance
+            className="mx-2 my-1 rounded-pill",
+            color="secondary",
             outline=True,
-            n_clicks=0,  # initialize with 0 clicks
+            n_clicks=0,
         )
         for i, word in enumerate(closest_8)
     ]
-    return word_tiles, word_to_highlight
+
+    if component_id and "word-tile" in component_id:
+        return [
+            html.Div(word_tiles)
+        ], word_to_highlight  # update the input box with the clicked word
+    else:
+        return [html.Div(word_tiles)], dash.no_update  # no update for the input box
 
 
-@dash_app.callback(Output("3d-plot", "figure"), [Input("word-input", "value")])
-def update_graph(word_to_highlight):
-    if not word_to_highlight:
-        word_to_highlight = DEFAULT_WORD
-    colors = ["blue" for word in words]
-    sizes = [5 for word in words]
+@dash_app.callback(
+    Output("3d-plot", "figure"),
+    [
+        Input("word-input", "n_submit"),
+        Input({"type": "word-tile", "index": ALL}, "n_clicks"),
+    ],
+    [
+        State("word-input", "value"),
+        State({"type": "word-tile", "index": ALL}, "children"),
+    ],
+)
+def update_graph(n_submit, tile_clicks, input_value, tile_labels):
+    ctx = dash.callback_context
 
-    if word_to_highlight in words:
-        idx = words.index(word_to_highlight)
-        colors[idx] = "red"
-        sizes[idx] = 20
+    clicked_button_idx = next(
+        (i for i, n in enumerate(tile_clicks) if n and n > 0), None
+    )
+
+    # If a word-tile button was clicked, update the words_to_highlight
+    if clicked_button_idx is not None:
+        words_to_highlight = [tile_labels[clicked_button_idx]]
+    else:
+        words_to_highlight = [word.strip() for word in input_value.split(",")]
+
+    colors = ["blue" if word not in words_to_highlight else "red" for word in words]
+    sizes = [20 if word in words_to_highlight else 5 for word in words]
 
     scatter = go.Scatter3d(
         x=reduced_embeddings[:, 0],
@@ -150,7 +227,12 @@ def update_graph(word_to_highlight):
         hoverinfo="text",
     )
 
-    layout = go.Layout(height=1000, margin=dict(l=0, r=0, b=0, t=0))
+    layout = go.Layout(
+        height=1000,
+        margin=dict(l=0, r=0, b=0, t=0),
+        uirevision="constant",
+    )
+
     fig = go.Figure(data=[scatter], layout=layout)
     return fig
 
@@ -158,51 +240,41 @@ def update_graph(word_to_highlight):
 # Dash layout
 dash_app.layout = dbc.Container(
     [
-        html.H2(
-            "3D Word Embedding Visualizer",
-            className="text-center my-5",
-            style={
-                "fontSize": "1.5em",
-                "@media (min-width: 768px)": {"fontSize": "2.5em"},
-            },  # Adjust font size based on screen width
-        ),
-        # Input Row
+        # Search Bar and Closest Words Overlay
         dbc.Row(
             [
                 dbc.Col(
-                    dcc.Input(
-                        id="word-input",
-                        type="text",
-                        placeholder="Enter a word...",
-                        value=DEFAULT_WORD,
-                        className="form-control mb-4 p-3",
-                        style={"borderRadius": "25px", "fontSize": "1.2em"},
-                    ),
-                    width={
-                        "size": 10,
-                        "offset": 1,
-                        "md": 6,
-                        "mdOffset": 3,
-                    },  # Adjusting width and offset for mobile and desktop
-                ),
-            ],
-            justify="center",
-        ),
-        # Closest Words Row
-        dbc.Row(
-            [
-                dbc.Col(
-                    html.Div(id="closest-words", className="text-center my-4"), width=12
+                    [
+                        dcc.Input(
+                            id="word-input",
+                            type="text",
+                            placeholder="Enter a word...",
+                            value=DEFAULT_WORD,
+                            className="form-control my-2 p-2",
+                            style={
+                                "borderRadius": "15px",
+                                "fontSize": "1.1em",
+                                "backgroundColor": "#f5f5f5aa",
+                            },
+                            n_submit=0,  # Initialize n_submit to 0
+                        ),
+                        html.Div(id="closest-words", className="text-center my-2"),
+                    ],
+                    className="position-fixed top-0 start-50 translate-middle-x p-2 rounded",  # Reduce padding
+                    style={"zIndex": 1000},
+                    width=5,
                 )
-            ]
+            ],
         ),
-        # 3D Plot Row
+        # 3D Plot
         dbc.Row(
             [
-                dbc.Col(dcc.Graph(id="3d-plot", style={"marginTop": "20px"}), width=12)
-            ],  # Increased margin-top
+                dbc.Col(
+                    dcc.Graph(id="3d-plot", style={"height": "100vh"}), width=12
+                )  # Set height to 100% of viewport height
+            ],
         ),
-        # Footer Component
+        # Footer Component (you may keep it or remove it, based on your preference)
         dbc.Row(
             [
                 dbc.Col(
@@ -229,8 +301,10 @@ dash_app.layout = dbc.Container(
             ]
         ),
     ],
+    style={
+        "paddingBottom": "50px"  # Add enough padding at the bottom to make space for the footer
+    },
     fluid=True,
-    className="p-2 p-md-5",  # Increased padding
 )
 
 if __name__ == "__main__":
