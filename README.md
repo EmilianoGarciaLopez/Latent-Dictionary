@@ -2,6 +2,9 @@
 
 ## Overview
 
+![Image showing the app in action](./readme_image.png)
+
+
 LatentDictionary is a unique visualization tool that leverages the power of word embeddings to showcase the semantic relationships of words in an interactive 3D space. By inputting a word, users can explore its closest semantic neighbors. The app fetches word embeddings for the Oxford 3000 list and can dynamically retrieve embeddings for new words using the OpenAI API, ensuring a rich and expanding vocabulary landscape.
 
 ## Features
