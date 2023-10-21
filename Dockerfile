@@ -25,4 +25,4 @@ COPY embeddings.pkl /app/
 EXPOSE 8050
 
 # Define the command to run the app
-CMD ["python", "index.py"]
+CMD ["gunicorn", "index:app", "-b", "0.0.0.0:8050", "-w", "1"]

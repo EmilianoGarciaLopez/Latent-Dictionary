@@ -266,22 +266,49 @@ dash_app.layout = dbc.Container(
             [
                 dbc.Col(
                     [
-                        dcc.Input(
-                            id="word-input",
-                            type="text",
-                            placeholder="Enter a word...",
-                            value=DEFAULT_WORD,
-                            className="form-control my-2 p-2",
-                            style={
-                                "borderRadius": "15px",
-                                "fontSize": "1.1em",
-                                "backgroundColor": "#f5f5f5aa",
-                            },
-                            n_submit=0,  # Initialize n_submit to 0
+                        dbc.InputGroup(
+                            [
+                                dcc.Input(
+                                    id="word-input",
+                                    type="text",
+                                    placeholder="Enter a word...",
+                                    value=DEFAULT_WORD,
+                                    className="form-control my-2 p-2",
+                                    style={
+                                        "borderRadius": "15px",
+                                        "fontSize": "1.1em",
+                                        "backgroundColor": "#f5f5f5aa",
+                                        "paddingRight": "40px",  # to ensure text doesn't overlap with the button
+                                    },
+                                    n_submit=0,  # Initialize n_submit to 0
+                                ),
+                                dbc.Button(
+                                    "?",
+                                    id="instructions-button",
+                                    className="position-absolute top-50 end-0 translate-middle-y border-0 rounded-circle",
+                                    style={
+                                        "background": "transparent",
+                                        "color": "#808080",  # Grey color
+                                        "fontSize": "1.2em",
+                                        "right": "15px",  # adjust as needed for your design
+                                    },
+                                ),
+                                dbc.Tooltip(
+                                    "Enter a word or list of words separated by commas and press enter. Words not in Oxford 3000 will generate on the fly.",
+                                    target="instructions-button",
+                                    placement="bottom",
+                                ),
+                            ],
+                            size="lg",
                         ),
-                        html.Div(id="closest-words", className="text-center my-2"),
+                        dcc.Loading(
+                            children=html.Div(
+                                id="closest-words", className="text-center my-2"
+                            ),
+                            type="default",
+                        ),
                     ],
-                    className="position-fixed top-0 start-50 translate-middle-x p-2 rounded",  # Reduce padding
+                    className="position-fixed top-0 start-50 translate-middle-x p-2 rounded",
                     style={"zIndex": 1000},
                     width=5,
                 )
@@ -295,7 +322,7 @@ dash_app.layout = dbc.Container(
                 )  # Set height to 100% of viewport height
             ],
         ),
-        # Footer Component (you may keep it or remove it, based on your preference)
+        # Footer Component
         dbc.Row(
             [
                 dbc.Col(
@@ -315,11 +342,13 @@ dash_app.layout = dbc.Container(
                             ),
                             html.Span("."),
                         ],
-                        className="text-center mt-5",
+                        className="text-end mt-5",
+                        style={"fontSize": "0.8em"},
                     ),
                     width=12,
-                )
-            ]
+                ),
+            ],
+            className="position-fixed bottom-0 end-0 mb-2 me-2",
         ),
     ],
     style={
