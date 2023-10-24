@@ -1,28 +1,29 @@
-# Use the slim-bullseye version of the official Python runtime as the base image
-FROM python:3.11.6-slim-bullseye
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Use the slim-bullseye version of the official Python runtime as the base image for builder
+FROM python:3.11.6-slim-bullseye AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy requirements.txt into the container at /app
+# Install system dependencies
+RUN apt-get update && apt-get install -y gcc libpython3-dev
+
+# Copy requirements.txt into the container at /ap
 COPY requirements.txt /app/
 
-# copy the .env file
+# Upgrade pip and install required packages using --user flag (install packages to the user site)
+RUN pip install --upgrade pip && pip install --user -r requirements.txt
+
+# Use another slim-bullseye Python image for the final image
+FROM python:3.11.6-slim-bullseye
+
+# Copy .env file and python files
 COPY .env /app/
-
-# Install required packages
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Copy the relevant project files into the container at /app
-COPY index.py /app/
+COPY refactored.py /app/
+COPY layout.py /app/
 COPY embeddings.pkl /app/
 
 # Expose port 8050 for the app to listen on
 EXPOSE 8050
 
 # Define the command to run the app
-CMD ["gunicorn", "index:app", "-b", "0.0.0.0:8050", "-w", "1"]
+CMD ["gunicorn", "refactored:app", "-b", "0.0.0.0:8050", "-w", "4"]
